@@ -1,14 +1,14 @@
 # 💰 FinanceAI — AI-Powered Personal Finance Assistant
 
-Full-stack personal finance app with AI chat powered by **bytedance/seed-oss-36b-instruct** via NVIDIA API.
+Full-stack personal finance app with AI chat powered by **llama-3.1-8b-instant** via GROQ API.
 
 ## 🚀 Quick Start
 
-### Step 1 — Set your NVIDIA API Key
+### Step 1 — Set your groq API Key
 
 Edit the `.env` file in the project root:
 ```
-NVIDIA_API_KEY=your_actual_nvidia_api_key_here
+GROQ_API_KRY=your_actual_groq_api_key_here
 ```
 
 ### Step 2 — Start the Backend
@@ -35,8 +35,7 @@ npm run dev
 
 | Setting | Value |
 |---|---|
-| Model | `bytedance/seed-oss-36b-instruct` |
-| Provider | NVIDIA API (`https://integrate.api.nvidia.com/v1`) |
+| Model | `llama-3.1-8b-instruct` |
 | Temperature | 1.1 |
 | Streaming | ✅ Real-time token streaming |
 | Thinking | Extended reasoning (`thinking_budget: -1`) |
