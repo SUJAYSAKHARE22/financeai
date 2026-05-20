@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-obsidian-900 text-slate-200 font-sans antialiased;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(139, 92, 246, 0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(16, 185, 129, 0.04) 0%, transparent 50%);
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .card { @apply bg-obsidian-800 border border-obsidian-600 rounded-2xl; }
+  .btn-primary { @apply bg-emerald-500 hover:bg-emerald-400 text-obsidian-900 font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 text-sm cursor-pointer; }
+  .btn-secondary { @apply bg-obsidian-600 hover:bg-obsidian-500 text-slate-200 font-medium px-5 py-2.5 rounded-xl transition-all duration-200 text-sm border border-obsidian-500 cursor-pointer; }
+  .input-field { @apply bg-obsidian-700 border border-obsidian-500 rounded-xl px-4 py-2.5 text-sm text-slate-200 w-full focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all placeholder-slate-500; }
+  .nav-item { @apply flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-obsidian-700 transition-all duration-200 cursor-pointer; }
+  .nav-item-active { @apply text-emerald-400 bg-emerald-500/10 border border-emerald-500/20; }
+  .badge-emerald { @apply text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20; }
+  .badge-rose { @apply text-xs font-medium px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/20; }
+  .badge-amber { @apply text-xs font-medium px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20; }
+  .badge-violet { @apply text-xs font-medium px-2.5 py-1 rounded-full bg-violet-500/15 text-violet-400 border border-violet-500/20; }
+  .shimmer {
+    background: linear-gradient(90deg, #1a1a25 25%, #242435 50%, #1a1a25 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+  .glass { background: rgba(10,10,15,0.95); backdrop-filter: blur(20px); }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+}
