@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import List, Optional, Dict
 from models.schemas import Transaction, Budget, Goal, TransactionCategory, TransactionType
+from models.aica_schemas import LedgerEntry, JournalEntry
 
 
 def _now() -> datetime:
@@ -23,6 +24,10 @@ class Database:
         self.transactions: Dict[str, Transaction] = {}
         self.budgets: Dict[str, Budget] = {}
         self.goals: Dict[str, Goal] = {}
+        self.ledger_entries: Dict[str, LedgerEntry] = {}
+        self.journal_entries: Dict[str, JournalEntry] = {}
+        self.tax_rules: Dict[str, dict] = {}
+        self.tax_reports: Dict[str, dict] = {}
         self._seed_data()
 
     def _seed_data(self):
@@ -205,6 +210,25 @@ class Database:
                 else:
                     monthly[key]["expense"] += t.amount
         return [{"month": k, **v} for k, v in sorted(monthly.items())]
+
+    # ── AI_CA Additions ───────────────────────────────────────────────────────
+    def get_all_ledger_entries(self) -> List[LedgerEntry]:
+        return list(self.ledger_entries.values())
+
+    def save_ledger_entry(self, entry: LedgerEntry) -> LedgerEntry:
+        if not entry.id:
+            entry.id = str(uuid.uuid4())
+        self.ledger_entries[entry.id] = entry
+        return entry
+
+    def get_all_journal_entries(self) -> List[JournalEntry]:
+        return list(self.journal_entries.values())
+
+    def save_journal_entry(self, entry: JournalEntry) -> JournalEntry:
+        if not entry.id:
+            entry.id = str(uuid.uuid4())
+        self.journal_entries[entry.id] = entry
+        return entry
 
 
 db = Database()

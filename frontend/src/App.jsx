@@ -7,6 +7,7 @@ import Transactions from './pages/Transactions'
 import Budgets from './pages/Budgets'
 import Goals from './pages/Goals'
 import AIAdvisor from './pages/AIAdvisor'
+import AICADashboard from './pages/AICADashboard'
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="/budgets" element={<Budgets />} />
             <Route path="/goals" element={<Goals />} />
             <Route path="/ai-advisor" element={<AIAdvisor />} />
+            <Route path="/ai-ca" element={<AICADashboard />} />
           </Routes>
         </main>
       </div>

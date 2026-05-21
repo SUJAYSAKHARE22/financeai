@@ -16,7 +16,7 @@ for env_path in [Path(".env"), Path("../.env"), Path(__file__).parent.parent / "
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger(__name__)
 
-from routers import transactions, budgets, ai_advisor, dashboard, goals
+from routers import transactions, budgets, ai_advisor, dashboard, goals, aica_router
 
 app = FastAPI(
     title="FinanceAI API",
@@ -31,6 +31,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:5173",
     ],
@@ -50,6 +52,7 @@ app.include_router(budgets.router, prefix="/api/budgets", tags=["Budgets"])
 app.include_router(ai_advisor.router, prefix="/api/ai", tags=["AI Advisor"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
 app.include_router(goals.router, prefix="/api/goals", tags=["Goals"])
+app.include_router(aica_router.router, prefix="/api/ai-ca", tags=["AI CA"])
 
 
 @app.get("/", tags=["Health"])

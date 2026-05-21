@@ -1,6 +1,6 @@
 import React from 'react'
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, ArrowLeftRight, PieChart, Target, Bot, ChevronLeft, ChevronRight, TrendingUp, Sparkles } from 'lucide-react'
+import { LayoutDashboard, ArrowLeftRight, PieChart, Target, Bot, ChevronLeft, ChevronRight, TrendingUp, Sparkles, Shield } from 'lucide-react'
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -8,6 +8,7 @@ const navItems = [
   { to: '/budgets', icon: PieChart, label: 'Budgets' },
   { to: '/goals', icon: Target, label: 'Goals' },
   { to: '/ai-advisor', icon: Bot, label: 'AI Advisor', highlight: true },
+  { to: '/ai-ca', icon: Shield, label: 'AI-CA' },
 ]
 
 export default function Sidebar({ open, setOpen }) {
