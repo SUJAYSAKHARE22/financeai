@@ -208,26 +208,27 @@ class ReportRequest(BaseModel):
 
 
 class TaxpayerProfile(BaseModel):
-    first_name: str = "Rajesh"
+    first_name: str = ""
     middle_name: Optional[str] = ""
-    last_name: str = "Kumar"
-    pan: str = "ABCDE1234F"
-    aadhaar_no: str = "1234 5678 9012"
-    dob: str = "1985-08-15"
-    email: str = "rajesh.kumar@gmail.com"
-    mobile: str = "9876543210"
-    address_flat: str = "Flat 402, Building A"
-    address_premises: str = "Green Glen Layout"
-    address_road: str = "Outer Ring Road"
-    address_area: str = "Bellandur"
-    address_city: str = "Bengaluru"
-    address_state: str = "Karnataka"
-    address_pin: str = "560103"
-    employer_type: str = "PRIVATE"  # GOVT, PSU, PRIVATE, OTHERS
-    bank_name: str = "HDFC Bank"
-    bank_account_no: str = "50100412345678"
-    bank_ifsc: str = "HDFC0000184"
-    bank_refund_eligible: bool = True
+    last_name: str = ""
+    pan: str = ""
+    aadhaar_no: str = ""
+    dob: str = ""
+    email: str = ""
+    mobile: str = ""
+    address_flat: str = ""
+    address_premises: str = ""
+    address_road: str = ""
+    address_area: str = ""
+    address_city: str = ""
+    address_state: str = ""
+    address_pin: str = ""
+    employer_type: str = "OTHERS"  # GOVT, PSU, PRIVATE, OTHERS
+    bank_name: str = ""
+    bank_account_no: str = ""
+    bank_ifsc: str = ""
+    bank_refund_eligible: bool = False
+
 
 
 class ITRFilingRequest(BaseModel):

@@ -32,51 +32,8 @@ class Database:
         self._seed_data()
 
     def _seed_data(self):
-        now = _now()
-        seed_transactions = [
-            Transaction(id=str(uuid.uuid4()), title="Monthly Salary", amount=75000, type=TransactionType.INCOME, category=TransactionCategory.INCOME, date=datetime(now.year, now.month, 1)),
-            Transaction(id=str(uuid.uuid4()), title="Freelance Project", amount=15000, type=TransactionType.INCOME, category=TransactionCategory.INCOME, date=datetime(now.year, now.month, 5)),
-            Transaction(id=str(uuid.uuid4()), title="Grocery Shopping", amount=4500, type=TransactionType.EXPENSE, category=TransactionCategory.FOOD, date=datetime(now.year, now.month, 3)),
-            Transaction(id=str(uuid.uuid4()), title="Restaurant Dinner", amount=1800, type=TransactionType.EXPENSE, category=TransactionCategory.FOOD, date=datetime(now.year, now.month, 7)),
-            Transaction(id=str(uuid.uuid4()), title="Uber Rides", amount=1200, type=TransactionType.EXPENSE, category=TransactionCategory.TRANSPORT, date=datetime(now.year, now.month, 4)),
-            Transaction(id=str(uuid.uuid4()), title="Amazon Shopping", amount=3500, type=TransactionType.EXPENSE, category=TransactionCategory.SHOPPING, date=datetime(now.year, now.month, 6)),
-            Transaction(id=str(uuid.uuid4()), title="Netflix Subscription", amount=649, type=TransactionType.EXPENSE, category=TransactionCategory.ENTERTAINMENT, date=datetime(now.year, now.month, 1)),
-            Transaction(id=str(uuid.uuid4()), title="Electricity Bill", amount=2200, type=TransactionType.EXPENSE, category=TransactionCategory.BILLS, date=datetime(now.year, now.month, 5)),
-            Transaction(id=str(uuid.uuid4()), title="Internet Bill", amount=999, type=TransactionType.EXPENSE, category=TransactionCategory.BILLS, date=datetime(now.year, now.month, 5)),
-            Transaction(id=str(uuid.uuid4()), title="Gym Membership", amount=1500, type=TransactionType.EXPENSE, category=TransactionCategory.HEALTH, date=datetime(now.year, now.month, 1)),
-            Transaction(id=str(uuid.uuid4()), title="Online Course", amount=2999, type=TransactionType.EXPENSE, category=TransactionCategory.EDUCATION, date=datetime(now.year, now.month, 8)),
-            Transaction(id=str(uuid.uuid4()), title="Mutual Fund SIP", amount=10000, type=TransactionType.EXPENSE, category=TransactionCategory.INVESTMENT, date=datetime(now.year, now.month, 3)),
-            Transaction(id=str(uuid.uuid4()), title="Mobile Recharge", amount=299, type=TransactionType.EXPENSE, category=TransactionCategory.BILLS, date=datetime(now.year, now.month, 2)),
-            Transaction(id=str(uuid.uuid4()), title="Coffee & Snacks", amount=800, type=TransactionType.EXPENSE, category=TransactionCategory.FOOD, date=datetime(now.year, now.month, 9)),
-            Transaction(id=str(uuid.uuid4()), title="Movie Tickets", amount=600, type=TransactionType.EXPENSE, category=TransactionCategory.ENTERTAINMENT, date=datetime(now.year, now.month, 10)),
-        ]
-        for t in seed_transactions:
-            t.created_at = _now()
-            self.transactions[t.id] = t
-        
-        # Seed default taxpayer profile
+        # Database starts completely blank. No pre-seeded transactions, budgets, or goals.
         self.taxpayer_profile = TaxpayerProfile().model_dump()
-
-        seed_budgets = [
-            Budget(id=str(uuid.uuid4()), category=TransactionCategory.FOOD, limit=8000, month=now.month, year=now.year),
-            Budget(id=str(uuid.uuid4()), category=TransactionCategory.TRANSPORT, limit=3000, month=now.month, year=now.year),
-            Budget(id=str(uuid.uuid4()), category=TransactionCategory.SHOPPING, limit=5000, month=now.month, year=now.year),
-            Budget(id=str(uuid.uuid4()), category=TransactionCategory.ENTERTAINMENT, limit=2000, month=now.month, year=now.year),
-            Budget(id=str(uuid.uuid4()), category=TransactionCategory.BILLS, limit=5000, month=now.month, year=now.year),
-        ]
-        for b in seed_budgets:
-            b.created_at = _now()
-            self._recalculate_budget_spent(b)
-            self.budgets[b.id] = b
-
-        seed_goals = [
-            Goal(id=str(uuid.uuid4()), title="Emergency Fund", target_amount=200000, current_amount=75000, description="6 months of expenses"),
-            Goal(id=str(uuid.uuid4()), title="New Laptop", target_amount=80000, current_amount=35000, deadline=datetime(now.year, 12, 31), description="MacBook Pro"),
-            Goal(id=str(uuid.uuid4()), title="Vacation - Goa Trip", target_amount=50000, current_amount=20000, deadline=datetime(now.year, 6, 30)),
-        ]
-        for g in seed_goals:
-            g.created_at = _now()
-            self.goals[g.id] = g
 
     def _recalculate_budget_spent(self, budget: Budget):
         spent = 0.0

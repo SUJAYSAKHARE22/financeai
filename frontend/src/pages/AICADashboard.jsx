@@ -171,10 +171,25 @@ export default function AICADashboard() {
   const pl = statements?.profit_loss || {}
   const taxComp = taxData?.tax_computation || {}
 
-  const pieData = Object.entries(catDist).map(([k, v]) => ({ name: k.replace(/_/g, ' '), value: v }))
-  const expenseBarData = Object.entries(topExpenses).map(([k, v]) => ({
-    name: k.replace(/_/g, ' ').slice(0, 12), amount: v.total, deductible: v.deductible
-  }))
+  const capitalizeWords = (str) => {
+    return str
+      .replace(/_/g, ' ')
+      .split(' ')
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ')
+  }
+
+  const pieData = Object.entries(catDist).map(([k, v]) => ({ name: capitalizeWords(k), value: v }))
+  const expenseBarData = Object.entries(topExpenses).map(([k, v]) => {
+    const total = v.total || 0
+    const deductible = v.deductible || 0
+    const nonDeductible = Math.max(0, total - deductible)
+    return {
+      name: capitalizeWords(k).slice(0, 18),
+      deductible: deductible,
+      nonDeductible: nonDeductible
+    }
+  })
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: TrendingUp },
@@ -285,12 +300,12 @@ export default function AICADashboard() {
             <div className="card p-5">
               <h3 className="text-sm font-semibold text-slate-300 mb-4">Top Expense Categories</h3>
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={expenseBarData} layout="vertical" margin={{ left: 0, right: 20 }}>
-                  <XAxis type="number" tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} width={90} />
+                <BarChart data={expenseBarData} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                  <XAxis type="number" tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={v => v >= 1000 ? `₹${(v/1000).toFixed(1).replace('.0', '')}k` : `₹${v}`} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} width={100} />
                   <Tooltip formatter={v => formatCurrency(v)} contentStyle={{ background: '#1a1a25', border: '1px solid #2e2e45', borderRadius: '8px', fontSize: '11px' }} />
-                  <Bar dataKey="amount" fill="#8b5cf6" radius={[0, 4, 4, 0]} name="Total" />
-                  <Bar dataKey="deductible" fill="#10b981" radius={[0, 4, 4, 0]} name="Deductible" />
+                  <Bar dataKey="deductible" stackId="a" fill="#10b981" name="Deductible" />
+                  <Bar dataKey="nonDeductible" stackId="a" fill="#8b5cf6" radius={[0, 4, 4, 0]} name="Non-Deductible" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
