@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import List, Optional, Dict
 from models.schemas import Transaction, Budget, Goal, TransactionCategory, TransactionType
-from models.aica_schemas import LedgerEntry, JournalEntry
+from models.aica_schemas import LedgerEntry, JournalEntry, TaxpayerProfile
 
 
 def _now() -> datetime:
@@ -28,6 +28,7 @@ class Database:
         self.journal_entries: Dict[str, JournalEntry] = {}
         self.tax_rules: Dict[str, dict] = {}
         self.tax_reports: Dict[str, dict] = {}
+        self.taxpayer_profile: dict = {}
         self._seed_data()
 
     def _seed_data(self):
@@ -52,6 +53,9 @@ class Database:
         for t in seed_transactions:
             t.created_at = _now()
             self.transactions[t.id] = t
+        
+        # Seed default taxpayer profile
+        self.taxpayer_profile = TaxpayerProfile().model_dump()
 
         seed_budgets = [
             Budget(id=str(uuid.uuid4()), category=TransactionCategory.FOOD, limit=8000, month=now.month, year=now.year),
@@ -229,6 +233,15 @@ class Database:
             entry.id = str(uuid.uuid4())
         self.journal_entries[entry.id] = entry
         return entry
+
+    def get_taxpayer_profile(self) -> dict:
+        if not self.taxpayer_profile:
+            self.taxpayer_profile = TaxpayerProfile().model_dump()
+        return self.taxpayer_profile
+
+    def save_taxpayer_profile(self, profile: dict) -> dict:
+        self.taxpayer_profile = profile
+        return self.taxpayer_profile
 
 
 db = Database()

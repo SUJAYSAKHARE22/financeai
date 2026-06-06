@@ -10,7 +10,7 @@ from fastapi.responses import Response
 
 from models.aica_schemas import (
     ClassifyRequest, ClassifyResponse, ReportRequest, ReportPeriod,
-    ReportFormat, TaxRegime, AICAhatRequest,
+    ReportFormat, TaxRegime, AICAhatRequest, TaxpayerProfile, ITRFilingRequest,
 )
 from services.classifier_service import classify_transactions
 from services.tax_engine import compute_tax, generate_tax_recommendations
@@ -21,6 +21,7 @@ from services.statement_engine import (
 )
 from services.aica_chat_service import aica_chat
 from services.report_generator import generate_pdf_report, generate_excel_report
+from services.itr_generator import generate_itr_json, generate_itr1_pdf, generate_form16_pdf, generate_form26as_pdf
 
 # Import existing DB — read-only usage, never modify existing data
 from services.database import db
@@ -301,3 +302,74 @@ def overview(regime: TaxRegime = Query(TaxRegime.NEW)):
         "recommendations": recs[:3],
         "classified_transactions": len(classified),
     }
+
+
+# ── 8. E-Filing & Documents ───────────────────────────────────────────────────
+
+@router.get("/profile", summary="Get taxpayer profile details")
+def get_profile():
+    return db.get_taxpayer_profile()
+
+
+@router.post("/profile", summary="Update taxpayer profile details")
+def update_profile(profile: TaxpayerProfile):
+    return db.save_taxpayer_profile(profile.model_dump())
+
+
+@router.post("/itr/json", summary="Generate ready-to-file ITR portal JSON")
+def get_itr_json_route(request: ITRFilingRequest):
+    classified = _get_classified(use_ai=False)
+    tax_result = compute_tax(classified, request.tax_regime, request.financial_year)
+    itr_json = generate_itr_json(request.profile, tax_result.model_dump(), classified)
+    return itr_json
+
+
+@router.post("/itr/pdf", summary="Generate filled ITR-1 Sahaj PDF Form")
+def get_itr_pdf_route(request: ITRFilingRequest):
+    try:
+        classified = _get_classified(use_ai=False)
+        tax_result = compute_tax(classified, request.tax_regime, request.financial_year)
+        pdf_bytes = generate_itr1_pdf(request.profile, tax_result.model_dump(), classified)
+        now = datetime.utcnow()
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=itr1_sahaj_{now.strftime('%Y%m%d')}.pdf"}
+        )
+    except Exception as e:
+        logger.error(f"Failed to generate ITR PDF: {e}")
+        raise HTTPException(status_code=500, detail=f"ITR PDF generation failed: {e}")
+
+
+@router.post("/document/form16", summary="Generate Form 16 Tax Summary PDF")
+def get_form16_route(request: ITRFilingRequest):
+    try:
+        classified = _get_classified(use_ai=False)
+        tax_result = compute_tax(classified, request.tax_regime, request.financial_year)
+        pdf_bytes = generate_form16_pdf(request.profile, tax_result.model_dump(), classified)
+        now = datetime.utcnow()
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=form16_salary_{now.strftime('%Y%m%d')}.pdf"}
+        )
+    except Exception as e:
+        logger.error(f"Failed to generate Form 16: {e}")
+        raise HTTPException(status_code=500, detail=f"Form 16 PDF generation failed: {e}")
+
+
+@router.post("/document/form26as", summary="Generate Form 26AS TDS Credit Statement PDF")
+def get_form26as_route(request: ITRFilingRequest):
+    try:
+        classified = _get_classified(use_ai=False)
+        tax_result = compute_tax(classified, request.tax_regime, request.financial_year)
+        pdf_bytes = generate_form26as_pdf(request.profile, tax_result.model_dump(), classified)
+        now = datetime.utcnow()
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=form26as_credit_{now.strftime('%Y%m%d')}.pdf"}
+        )
+    except Exception as e:
+        logger.error(f"Failed to generate Form 26AS: {e}")
+        raise HTTPException(status_code=500, detail=f"Form 26AS PDF generation failed: {e}")

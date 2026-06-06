@@ -78,6 +78,79 @@ export const aicaAPI = {
       conversation_history: history,
       include_tax_context: includeTaxContext,
     }),
+
+  // Get Taxpayer Profile
+  getProfile: () => api.get('/ai-ca/profile'),
+
+  // Save Taxpayer Profile
+  saveProfile: (profile) => api.post('/ai-ca/profile', profile),
+
+  // Download ITR JSON
+  downloadITRJson: async (profile, taxRegime = 'new', financialYear = '2024-25') => {
+    const resp = await api.post('/ai-ca/itr/json', {
+      profile,
+      tax_regime: taxRegime,
+      financial_year: financialYear
+    })
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(resp.data, null, 2))
+    const a = document.createElement('a')
+    a.href = dataStr
+    a.download = `itr1_sahaj_${profile.pan}_${financialYear}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  },
+
+  // Download ITR PDF Form
+  downloadITRPdf: async (profile, taxRegime = 'new', financialYear = '2024-25') => {
+    const resp = await api.post('/ai-ca/itr/pdf', {
+      profile,
+      tax_regime: taxRegime,
+      financial_year: financialYear
+    }, { responseType: 'blob' })
+    const url = URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `itr1_sahaj_${profile.pan}_${financialYear}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  },
+
+  // Download Form 16 Summary
+  downloadForm16: async (profile, taxRegime = 'new', financialYear = '2024-25') => {
+    const resp = await api.post('/ai-ca/document/form16', {
+      profile,
+      tax_regime: taxRegime,
+      financial_year: financialYear
+    }, { responseType: 'blob' })
+    const url = URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `form16_${profile.pan}_${financialYear}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  },
+
+  // Download Form 26AS Statement
+  downloadForm26as: async (profile, taxRegime = 'new', financialYear = '2024-25') => {
+    const resp = await api.post('/ai-ca/document/form26as', {
+      profile,
+      tax_regime: taxRegime,
+      financial_year: financialYear
+    }, { responseType: 'blob' })
+    const url = URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `form26as_${profile.pan}_${financialYear}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  },
 }
 
 export default api

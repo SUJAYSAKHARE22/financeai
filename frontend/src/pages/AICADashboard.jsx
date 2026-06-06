@@ -44,23 +44,81 @@ export default function AICADashboard() {
   const [activeTab, setActiveTab] = useState('overview')
   const [classifying, setClassifying] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  
+  const [profile, setProfile] = useState(null)
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [generatingDoc, setGeneratingDoc] = useState(null)
 
   const load = async (r = regime) => {
     setLoading(true)
     try {
-      const [ov, tx, st] = await Promise.all([
+      const [ov, tx, st, prof] = await Promise.all([
         aicaAPI.getOverview(r),
         aicaAPI.getTaxSummary(r),
         aicaAPI.getFinancialStatements({ period: 'monthly', regime: r }),
+        aicaAPI.getProfile(),
       ])
       setOverview(ov.data)
       setTaxData(tx.data)
       setStatements(st.data)
+      setProfile(prof.data)
     } catch (e) {
       toast.error('Failed to load AI-CA data')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleProfileChange = (key, value) => {
+    setProfile(prev => ({ ...prev, [key]: value }))
+  }
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault()
+    setProfileSaving(true)
+    try {
+      await aicaAPI.saveProfile(profile)
+      toast.success('Taxpayer profile updated!')
+    } catch {
+      toast.error('Failed to save profile')
+    } finally {
+      setProfileSaving(false)
+    }
+  }
+
+  const downloadITRDoc = async (type) => {
+    setGeneratingDoc(type)
+    const fy = taxComp.financial_year || '2024-25'
+    try {
+      if (type === 'json') {
+        await aicaAPI.downloadITRJson(profile, regime, fy)
+        toast.success('Ready-to-file ITR JSON generated!')
+      } else if (type === 'pdf') {
+        await aicaAPI.downloadITRPdf(profile, regime, fy)
+        toast.success('Official ITR-1 Sahaj Form PDF downloaded!')
+      } else if (type === 'form16') {
+        await aicaAPI.downloadForm16(profile, regime, fy)
+        toast.success('Form 16 Tax Summary PDF downloaded!')
+      } else if (type === 'form26as') {
+        await aicaAPI.downloadForm26as(profile, regime, fy)
+        toast.success('Form 26AS TDS Credit PDF downloaded!')
+      }
+    } catch (e) {
+      console.error(e)
+      toast.error(`Failed to generate ${type.toUpperCase()}`)
+    } finally {
+      setGeneratingDoc(null)
+    }
+  }
+
+  const sumSalaries = (st) => {
+    const pl = st?.profit_loss || {}
+    return (pl.income_breakdown?.salary || 0)
+  }
+
+  const sumInterest = (st) => {
+    const pl = st?.profit_loss || {}
+    return (pl.income_breakdown?.interest_income || 0)
   }
 
   useEffect(() => { load() }, [])
@@ -122,6 +180,7 @@ export default function AICADashboard() {
     { id: 'overview', label: 'Overview', icon: TrendingUp },
     { id: 'tax', label: 'Tax', icon: Calculator },
     { id: 'statements', label: 'Statements', icon: BookOpen },
+    { id: 'itr', label: 'E-Filing & Docs', icon: FileText },
     { id: 'chat', label: 'AI-CA Chat', icon: Shield },
   ]
 
@@ -420,6 +479,242 @@ export default function AICADashboard() {
               className="flex items-center gap-2 btn-secondary">
               <Download size={15} /> Download Excel Report
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── E-FILING & DOCUMENTS TAB ─────────────────────────────────────── */}
+      {activeTab === 'itr' && profile && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-slate-100">
+          {/* Left: Taxpayer Profile Form */}
+          <div className="lg:col-span-7 card p-6 space-y-6 border border-obsidian-600 bg-obsidian-900">
+            <div className="flex items-center gap-3 pb-3 border-b border-obsidian-700">
+              <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+                <FileText size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-200">Taxpayer Profile Details</h3>
+                <p className="text-slate-500 text-xs">Verify your official personal and banking records for e-filing</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] text-slate-500 font-medium mb-1 uppercase tracking-wider">First Name</label>
+                  <input type="text" value={profile.first_name || ''} onChange={e => handleProfileChange('first_name', e.target.value)}
+                    className="w-full text-xs bg-obsidian-800 border border-obsidian-600 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors" required />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-500 font-medium mb-1 uppercase tracking-wider">Last Name</label>
+                  <input type="text" value={profile.last_name || ''} onChange={e => handleProfileChange('last_name', e.target.value)}
+                    className="w-full text-xs bg-obsidian-800 border border-obsidian-600 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors" required />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[11px] text-slate-500 font-medium mb-1 uppercase tracking-wider">PAN (10 digits)</label>
+                  <input type="text" value={profile.pan || ''} onChange={e => handleProfileChange('pan', e.target.value.toUpperCase())}
+                    className="w-full font-mono text-xs bg-obsidian-800 border border-obsidian-600 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors" required maxLength={10} />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-500 font-medium mb-1 uppercase tracking-wider">Aadhaar (12 digits)</label>
+                  <input type="text" value={profile.aadhaar_no || ''} onChange={e => handleProfileChange('aadhaar_no', e.target.value)}
+                    className="w-full font-mono text-xs bg-obsidian-800 border border-obsidian-600 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors" required maxLength={19} />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-500 font-medium mb-1 uppercase tracking-wider">Date of Birth</label>
+                  <input type="date" value={profile.dob || ''} onChange={e => handleProfileChange('dob', e.target.value)}
+                    className="w-full text-xs bg-obsidian-800 border border-obsidian-600 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors" required />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] text-slate-500 font-medium mb-1 uppercase tracking-wider">Email Address</label>
+                  <input type="email" value={profile.email || ''} onChange={e => handleProfileChange('email', e.target.value)}
+                    className="w-full text-xs bg-obsidian-800 border border-obsidian-600 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors" required />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-500 font-medium mb-1 uppercase tracking-wider">Mobile Number</label>
+                  <input type="text" value={profile.mobile || ''} onChange={e => handleProfileChange('mobile', e.target.value)}
+                    className="w-full font-mono text-xs bg-obsidian-800 border border-obsidian-600 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors" required maxLength={10} />
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Postal Address</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input type="text" placeholder="Flat / Door / Block No." value={profile.address_flat || ''} onChange={e => handleProfileChange('address_flat', e.target.value)}
+                    className="w-full text-xs bg-obsidian-800 border border-obsidian-600 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors" required />
+                  <input type="text" placeholder="Premises / Building / Village" value={profile.address_premises || ''} onChange={e => handleProfileChange('address_premises', e.target.value)}
+                    className="w-full text-xs bg-obsidian-800 border border-obsidian-600 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors" required />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <input type="text" placeholder="Road / Street" value={profile.address_road || ''} onChange={e => handleProfileChange('address_road', e.target.value)}
+                    className="w-full text-xs bg-obsidian-800 border border-obsidian-600 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors" required />
+                  <input type="text" placeholder="Area / Locality" value={profile.address_area || ''} onChange={e => handleProfileChange('address_area', e.target.value)}
+                    className="w-full text-xs bg-obsidian-800 border border-obsidian-600 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors" required />
+                  <input type="text" placeholder="City" value={profile.address_city || ''} onChange={e => handleProfileChange('address_city', e.target.value)}
+                    className="w-full text-xs bg-obsidian-800 border border-obsidian-600 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors" required />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <input type="text" placeholder="State" value={profile.address_state || ''} onChange={e => handleProfileChange('address_state', e.target.value)}
+                    className="w-full text-xs bg-obsidian-800 border border-obsidian-600 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors" required />
+                  <input type="text" placeholder="PIN Code" value={profile.address_pin || ''} onChange={e => handleProfileChange('address_pin', e.target.value)}
+                    className="w-full font-mono text-xs bg-obsidian-800 border border-obsidian-600 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors" required maxLength={6} />
+                  <select value={profile.employer_type || 'PRIVATE'} onChange={e => handleProfileChange('employer_type', e.target.value)}
+                    className="w-full text-xs bg-obsidian-800 border border-obsidian-600 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors">
+                    <option value="PRIVATE">Private Sector Employee</option>
+                    <option value="GOVT">Central/State Govt</option>
+                    <option value="PSU">Public Sector Undertaking</option>
+                    <option value="OTHERS">Others (Freelancers/Self-Employed)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Primary Bank Account</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <input type="text" placeholder="Bank Name" value={profile.bank_name || ''} onChange={e => handleProfileChange('bank_name', e.target.value)}
+                    className="w-full text-xs bg-obsidian-800 border border-obsidian-600 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors" required />
+                  <input type="text" placeholder="Account Number" value={profile.bank_account_no || ''} onChange={e => handleProfileChange('bank_account_no', e.target.value)}
+                    className="w-full font-mono text-xs bg-obsidian-800 border border-obsidian-600 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors" required />
+                  <input type="text" placeholder="IFSC Code" value={profile.bank_ifsc || ''} onChange={e => handleProfileChange('bank_ifsc', e.target.value.toUpperCase())}
+                    className="w-full font-mono text-xs bg-obsidian-800 border border-obsidian-600 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors" required />
+                </div>
+                <div className="flex items-center gap-2.5 pt-1">
+                  <input type="checkbox" id="bank_refund" checked={profile.bank_refund_eligible || false} onChange={e => handleProfileChange('bank_refund_eligible', e.target.checked)}
+                    className="rounded border-obsidian-600 bg-obsidian-800 text-emerald-500 focus:ring-emerald-500" />
+                  <label htmlFor="bank_refund" className="text-xs text-slate-400 select-none">Select this bank account for Refund payout</label>
+                </div>
+              </div>
+
+              <button type="submit" disabled={profileSaving}
+                className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-obsidian-900 text-sm font-semibold transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2">
+                {profileSaving ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" /> Saving...
+                  </>
+                ) : 'Save Profile Changes'}
+              </button>
+            </form>
+          </div>
+
+          {/* Right: ITR-1 Live Preview & Documents Download */}
+          <div className="lg:col-span-5 space-y-6">
+            {/* Live Document Preview */}
+            <div className="card p-5 border border-emerald-500/20 bg-gradient-to-b from-obsidian-850 to-obsidian-900 space-y-4 shadow-xl">
+              <div className="flex items-center justify-between border-b border-obsidian-700 pb-2">
+                <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider">FORM ITR-1 LIVE PREVIEW</span>
+                <span className="text-[10px] text-slate-500 font-semibold font-mono uppercase">AY 2025-26</span>
+              </div>
+
+              <div className="space-y-3 font-mono text-[11px] text-slate-300">
+                <div className="bg-obsidian-900/60 p-3 rounded-xl border border-obsidian-700 space-y-1.5 shadow-inner">
+                  <div className="flex justify-between"><span className="text-slate-500">Name:</span> <span className="font-bold text-slate-200">{profile.first_name || ''} {profile.last_name || ''}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">PAN:</span> <span className="font-bold text-amber-500">{profile.pan || ''}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Status:</span> <span>Resident Individual</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Filing Sec:</span> <span>139(1) - On Time</span></div>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <div className="flex justify-between border-b border-obsidian-750 pb-1.5">
+                    <span className="text-slate-400">A. Gross Salary Income:</span>
+                    <span className="text-emerald-400 font-semibold">{formatCurrency(sumSalaries(statements))}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-obsidian-750 pb-1.5">
+                    <span className="text-slate-400">B. Standard Deduction (16ia):</span>
+                    <span className="text-slate-500">-{formatCurrency(taxComp.deduction_breakdown?.standard_deduction || 0)}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-obsidian-750 pb-1.5">
+                    <span className="text-slate-400">C. Other Sources (Interest):</span>
+                    <span className="text-emerald-400 font-semibold">{formatCurrency(sumInterest(statements))}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-obsidian-750 pb-1.5 font-bold text-slate-100">
+                    <span>D. Gross Total Income:</span>
+                    <span>{formatCurrency(taxComp.gross_income || 0)}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-obsidian-750 pb-1.5">
+                    <span className="text-slate-400">E. Chapter VI-A Deductions:</span>
+                    <span className="text-violet-400 font-semibold">-{formatCurrency(taxComp.total_deductions - (taxComp.deduction_breakdown?.standard_deduction || 0))}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-obsidian-750 pb-1.5 font-bold text-amber-500">
+                    <span>F. Net Taxable Income:</span>
+                    <span>{formatCurrency(taxComp.taxable_income || 0)}</span>
+                  </div>
+                </div>
+
+                <div className="bg-obsidian-900/80 p-3 rounded-xl border border-obsidian-700 space-y-2 shadow-inner">
+                  <div className="flex justify-between"><span className="text-slate-400 font-bold">Total Tax Liability:</span> <span className="font-bold text-rose-400">{formatCurrency(taxComp.total_tax_liability || 0)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Less: Reconciled TDS Credit:</span> <span className="text-slate-300">{formatCurrency(taxComp.tds_already_paid || 0)}</span></div>
+                  {taxComp.net_tax_payable > 0 ? (
+                    <div className="flex justify-between pt-2 border-t border-obsidian-700 font-bold text-rose-500 text-xs"><span className="font-bold">Net Tax Due:</span> <span>{formatCurrency(taxComp.net_tax_payable)}</span></div>
+                  ) : (
+                    <div className="flex justify-between pt-2 border-t border-obsidian-700 font-bold text-emerald-400 text-xs"><span className="font-bold">Refund Due:</span> <span>{formatCurrency(Math.max(0, taxComp.tds_already_paid - taxComp.total_tax_liability))}</span></div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Document Generation Action Cards */}
+            <div className="card p-5 space-y-4 border border-obsidian-600 bg-obsidian-900">
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Generate & Download Documents</h4>
+              
+              <div className="grid grid-cols-1 gap-3">
+                {/* 1. ITR Portal JSON */}
+                <div className="flex items-center justify-between p-3.5 rounded-xl bg-obsidian-800 border border-obsidian-700 hover:border-emerald-500/35 transition-colors">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                      ITR-1 Portal E-Filing File (JSON)
+                      <span className="text-[9px] font-mono text-emerald-450 bg-emerald-500/10 px-2 py-0.5 rounded font-normal border border-emerald-500/20">Ready-to-File</span>
+                    </span>
+                    <p className="text-slate-500 text-[10px]">Official JSON schema to upload directly to incometax.gov.in portal</p>
+                  </div>
+                  <button onClick={() => downloadITRDoc('json')} disabled={generatingDoc !== null}
+                    className="p-2.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-350 border border-emerald-500/20 transition-colors disabled:opacity-50">
+                    <Download size={14} />
+                  </button>
+                </div>
+
+                {/* 2. Official Return PDF */}
+                <div className="flex items-center justify-between p-3.5 rounded-xl bg-obsidian-800 border border-obsidian-700 hover:border-rose-500/35 transition-colors">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-bold text-slate-200">Official ITR-1 Return Form (PDF)</span>
+                    <p className="text-slate-500 text-[10px]">Government-style structured Form ITR-1 Sahaj Return Acknowledgement</p>
+                  </div>
+                  <button onClick={() => downloadITRDoc('pdf')} disabled={generatingDoc !== null}
+                    className="p-2.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-350 border border-rose-500/20 transition-colors disabled:opacity-50">
+                    <Download size={14} />
+                  </button>
+                </div>
+
+                {/* 3. Form 16 Summary PDF */}
+                <div className="flex items-center justify-between p-3.5 rounded-xl bg-obsidian-800 border border-obsidian-700 hover:border-violet-500/35 transition-colors">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-bold text-slate-200">Form 16 Salary & Tax Sheet (PDF)</span>
+                    <p className="text-slate-500 text-[10px]">Tax Computation Certificate under Section 203 of the Income Tax Act</p>
+                  </div>
+                  <button onClick={() => downloadITRDoc('form16')} disabled={generatingDoc !== null}
+                    className="p-2.5 rounded-lg bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 hover:text-violet-350 border border-violet-500/20 transition-colors disabled:opacity-50">
+                    <Download size={14} />
+                  </button>
+                </div>
+
+                {/* 4. Form 26AS PDF */}
+                <div className="flex items-center justify-between p-3.5 rounded-xl bg-obsidian-800 border border-obsidian-700 hover:border-amber-500/35 transition-colors">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-bold text-slate-200">Form 26AS Tax Credit Statement (PDF)</span>
+                    <p className="text-slate-500 text-[10px]">Reconciled record of TDS credited against taxpayer PAN u/s 203AA</p>
+                  </div>
+                  <button onClick={() => downloadITRDoc('form26as')} disabled={generatingDoc !== null}
+                    className="p-2.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 hover:text-amber-350 border border-amber-500/20 transition-colors disabled:opacity-50">
+                    <Download size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
