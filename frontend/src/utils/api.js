@@ -2,6 +2,22 @@ import axios from 'axios'
 
 const api = axios.create({ baseURL: '/api', headers: { 'Content-Type': 'application/json' } })
 
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('financeai_token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+}, (error) => {
+  return Promise.reject(error)
+})
+
+export const authAPI = {
+  register: (username, password) => api.post('/auth/register', { username, password }),
+  login: (username, password) => api.post('/auth/login', { username, password }),
+  logout: () => api.post('/auth/logout'),
+}
+
 export const transactionsAPI = {
   getAll: () => api.get('/transactions/'),
   create: (data) => api.post('/transactions/', data),
@@ -31,9 +47,13 @@ export const dashboardAPI = {
 export const aiAPI = {
   // Streaming chat — returns raw fetch response for SSE
   chatStream: async (message, history, onDelta, onDone) => {
+    const token = localStorage.getItem('financeai_token')
+    const headers = { 'Content-Type': 'application/json' }
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    
     const resp = await fetch('/api/ai/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ message, conversation_history: history })
     })
     if (!resp.ok) throw new Error('AI request failed')

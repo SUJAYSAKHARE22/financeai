@@ -1,6 +1,7 @@
 import React from 'react'
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, ArrowLeftRight, PieChart, Target, Bot, ChevronLeft, ChevronRight, TrendingUp, Sparkles, Shield } from 'lucide-react'
+import { LayoutDashboard, ArrowLeftRight, PieChart, Target, Bot, ChevronLeft, ChevronRight, TrendingUp, Sparkles, Shield, LogOut } from 'lucide-react'
+import { useAuth } from '../components/AuthContext'
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -12,6 +13,8 @@ const navItems = [
 ]
 
 export default function Sidebar({ open, setOpen }) {
+  const { logout } = useAuth()
+
   return (
     <aside className={`fixed left-0 top-0 h-full z-50 flex flex-col transition-all duration-300 border-r border-obsidian-600 glass ${open ? 'w-64' : 'w-16'}`}>
       <div className="flex items-center gap-3 px-4 py-5 border-b border-obsidian-600 min-h-[72px]">
@@ -47,7 +50,11 @@ export default function Sidebar({ open, setOpen }) {
         ))}
       </nav>
 
-      <div className="px-2 py-4 border-t border-obsidian-600">
+      <div className="px-2 py-4 border-t border-obsidian-600 space-y-1">
+        <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold text-rose-450 hover:text-rose-400 hover:bg-rose-500/10 transition-all cursor-pointer">
+          <LogOut size={16} />
+          {open && <span>Log Out</span>}
+        </button>
         <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-slate-500 hover:text-slate-300 hover:bg-obsidian-700 transition-all text-xs">
           {open ? <><ChevronLeft size={16} /><span>Collapse</span></> : <ChevronRight size={16} />}
         </button>

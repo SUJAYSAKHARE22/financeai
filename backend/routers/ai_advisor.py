@@ -1,7 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse, JSONResponse
 from models.schemas import ChatRequest
 from services.database import db
+from services.auth import get_current_user_id
 import os
 import json
 import logging
@@ -51,9 +52,9 @@ def _sse(payload: dict) -> str:
 
 
 @router.post("/chat")
-async def ai_chat(request: ChatRequest):
+async def ai_chat(request: ChatRequest, user_id: str = Depends(get_current_user_id)):
     client, has_key = get_groq_client()
-    ctx = db.get_financial_summary()
+    ctx = db.get_financial_summary(user_id)
 
     if not has_key:
         resp = generate_demo_response(request.message, ctx)
@@ -103,10 +104,10 @@ async def ai_chat(request: ChatRequest):
 
 
 @router.post("/chat/sync")
-async def ai_chat_sync(request: ChatRequest):
+async def ai_chat_sync(request: ChatRequest, user_id: str = Depends(get_current_user_id)):
     """Non-streaming fallback endpoint."""
     client, has_key = get_groq_client()
-    ctx = db.get_financial_summary()
+    ctx = db.get_financial_summary(user_id)
 
     if not has_key:
         return generate_demo_response(request.message, ctx)
@@ -217,8 +218,8 @@ What would you like to explore?"""
 
 
 @router.get("/insights")
-def get_ai_insights():
-    ctx = db.get_financial_summary()
+def get_ai_insights(user_id: str = Depends(get_current_user_id)):
+    ctx = db.get_financial_summary(user_id)
     insights = []
 
     rate = ctx.get("savings_rate", 0)

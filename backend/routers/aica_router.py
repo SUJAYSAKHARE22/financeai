@@ -5,7 +5,7 @@ Does NOT modify any existing routers.
 """
 import logging
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from fastapi.responses import Response
 
 from models.aica_schemas import (
@@ -25,15 +25,16 @@ from services.itr_generator import generate_itr_json, generate_itr1_pdf, generat
 
 # Import existing DB — read-only usage, never modify existing data
 from services.database import db
+from services.auth import get_current_user_id
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 # ── Shared helper ──────────────────────────────────────────────────────────────
 
-def _get_classified(use_ai: bool = True):
+def _get_classified(user_id: str, use_ai: bool = True):
     """Classify all transactions from existing DB."""
-    transactions = db.get_all_transactions()
+    transactions = db.get_all_transactions(user_id)
     if not transactions:
         return []
     response = classify_transactions(transactions, use_ai=use_ai)
@@ -43,12 +44,12 @@ def _get_classified(use_ai: bool = True):
 # ── 1. Classify ───────────────────────────────────────────────────────────────
 
 @router.post("/classify", response_model=ClassifyResponse, summary="Classify transactions for tax")
-def classify(request: ClassifyRequest):
+def classify(request: ClassifyRequest, user_id: str = Depends(get_current_user_id)):
     """
     Classify all (or selected) transactions using rule engine + optional AI.
     Returns enriched classification with tax flags.
     """
-    all_transactions = db.get_all_transactions()
+    all_transactions = db.get_all_transactions(user_id)
     if not all_transactions:
         return ClassifyResponse(classified=[], total=0, ai_classified=0, rule_classified=0)
 
@@ -68,11 +69,12 @@ def tax_summary(
     regime: TaxRegime = Query(TaxRegime.NEW, description="old or new tax regime"),
     financial_year: str = Query("2024-25"),
     existing_tds: float = Query(0.0, description="TDS already deducted (₹)"),
+    user_id: str = Depends(get_current_user_id)
 ):
     """
     Compute estimated Indian income tax liability based on all classified transactions.
     """
-    classified = _get_classified(use_ai=False)   # rule engine only for speed
+    classified = _get_classified(user_id, use_ai=False)   # rule engine only for speed
     if not classified:
         raise HTTPException(status_code=404, detail="No transactions found to compute tax")
 
@@ -98,8 +100,9 @@ def financial_statements(
     quarter: int = Query(None, ge=1, le=4),
     regime: TaxRegime = Query(TaxRegime.NEW),
     financial_year: str = Query("2024-25"),
+    user_id: str = Depends(get_current_user_id)
 ):
-    classified = _get_classified(use_ai=False)
+    classified = _get_classified(user_id, use_ai=False)
     if not classified:
         raise HTTPException(status_code=404, detail="No transactions found")
 
@@ -124,8 +127,8 @@ def financial_statements(
 # ── 4. Ledger ─────────────────────────────────────────────────────────────────
 
 @router.get("/ledger", summary="Get accounting ledger entries")
-def ledger():
-    classified = _get_classified(use_ai=False)
+def ledger(user_id: str = Depends(get_current_user_id)):
+    classified = _get_classified(user_id, use_ai=False)
     if not classified:
         raise HTTPException(status_code=404, detail="No transactions found")
 
@@ -133,13 +136,13 @@ def ledger():
     journals = generate_journal_entries(classified)
     account_summary = generate_account_summary(classified)
 
-    db.ledger_entries.clear()
+    db.clear_ledger_entries(user_id)
     for e in entries:
-        db.save_ledger_entry(e)
+        db.save_ledger_entry(user_id, e)
 
-    db.journal_entries.clear()
+    db.clear_journal_entries(user_id)
     for j in journals:
-        db.save_journal_entry(j)
+        db.save_journal_entry(user_id, j)
 
     return {
         "ledger_entries": [e.model_dump() for e in entries],
@@ -152,8 +155,8 @@ def ledger():
 # ── 5. Reports (JSON / PDF / Excel) ───────────────────────────────────────────
 
 @router.post("/reports", summary="Generate downloadable reports (JSON/PDF/Excel)")
-def generate_report(request: ReportRequest):
-    classified = _get_classified(use_ai=False)
+def generate_report(request: ReportRequest, user_id: str = Depends(get_current_user_id)):
+    classified = _get_classified(user_id, use_ai=False)
     if not classified:
         raise HTTPException(status_code=404, detail="No transactions found")
 
@@ -222,9 +225,9 @@ def generate_report(request: ReportRequest):
 # ── 6. AI-CA Chat ─────────────────────────────────────────────────────────────
 
 @router.post("/chat", summary="Chat with AI Chartered Accountant")
-def aica_chat_endpoint(request: AICAhatRequest):
-    classified = _get_classified(use_ai=False)
-    fin_ctx = db.get_financial_summary()
+def aica_chat_endpoint(request: AICAhatRequest, user_id: str = Depends(get_current_user_id)):
+    classified = _get_classified(user_id, use_ai=False)
+    fin_ctx = db.get_financial_summary(user_id)
 
     # Build tax context for prompt
     if classified:
@@ -256,9 +259,9 @@ def aica_chat_endpoint(request: AICAhatRequest):
 # ── 7. Overview / Dashboard data ─────────────────────────────────────────────
 
 @router.get("/overview", summary="AI-CA dashboard overview")
-def overview(regime: TaxRegime = Query(TaxRegime.NEW)):
-    classified = _get_classified(use_ai=False)
-    fin_ctx = db.get_financial_summary()
+def overview(regime: TaxRegime = Query(TaxRegime.NEW), user_id: str = Depends(get_current_user_id)):
+    classified = _get_classified(user_id, use_ai=False)
+    fin_ctx = db.get_financial_summary(user_id)
 
     if not classified:
         return {
@@ -307,27 +310,27 @@ def overview(regime: TaxRegime = Query(TaxRegime.NEW)):
 # ── 8. E-Filing & Documents ───────────────────────────────────────────────────
 
 @router.get("/profile", summary="Get taxpayer profile details")
-def get_profile():
-    return db.get_taxpayer_profile()
+def get_profile(user_id: str = Depends(get_current_user_id)):
+    return db.get_taxpayer_profile(user_id)
 
 
 @router.post("/profile", summary="Update taxpayer profile details")
-def update_profile(profile: TaxpayerProfile):
-    return db.save_taxpayer_profile(profile.model_dump())
+def update_profile(profile: TaxpayerProfile, user_id: str = Depends(get_current_user_id)):
+    return db.save_taxpayer_profile(user_id, profile.model_dump())
 
 
 @router.post("/itr/json", summary="Generate ready-to-file ITR portal JSON")
-def get_itr_json_route(request: ITRFilingRequest):
-    classified = _get_classified(use_ai=False)
+def get_itr_json_route(request: ITRFilingRequest, user_id: str = Depends(get_current_user_id)):
+    classified = _get_classified(user_id, use_ai=False)
     tax_result = compute_tax(classified, request.tax_regime, request.financial_year)
     itr_json = generate_itr_json(request.profile, tax_result.model_dump(), classified)
     return itr_json
 
 
 @router.post("/itr/pdf", summary="Generate filled ITR-1 Sahaj PDF Form")
-def get_itr_pdf_route(request: ITRFilingRequest):
+def get_itr_pdf_route(request: ITRFilingRequest, user_id: str = Depends(get_current_user_id)):
     try:
-        classified = _get_classified(use_ai=False)
+        classified = _get_classified(user_id, use_ai=False)
         tax_result = compute_tax(classified, request.tax_regime, request.financial_year)
         pdf_bytes = generate_itr1_pdf(request.profile, tax_result.model_dump(), classified)
         now = datetime.utcnow()
@@ -342,9 +345,9 @@ def get_itr_pdf_route(request: ITRFilingRequest):
 
 
 @router.post("/document/form16", summary="Generate Form 16 Tax Summary PDF")
-def get_form16_route(request: ITRFilingRequest):
+def get_form16_route(request: ITRFilingRequest, user_id: str = Depends(get_current_user_id)):
     try:
-        classified = _get_classified(use_ai=False)
+        classified = _get_classified(user_id, use_ai=False)
         tax_result = compute_tax(classified, request.tax_regime, request.financial_year)
         pdf_bytes = generate_form16_pdf(request.profile, tax_result.model_dump(), classified)
         now = datetime.utcnow()
@@ -359,9 +362,9 @@ def get_form16_route(request: ITRFilingRequest):
 
 
 @router.post("/document/form26as", summary="Generate Form 26AS TDS Credit Statement PDF")
-def get_form26as_route(request: ITRFilingRequest):
+def get_form26as_route(request: ITRFilingRequest, user_id: str = Depends(get_current_user_id)):
     try:
-        classified = _get_classified(use_ai=False)
+        classified = _get_classified(user_id, use_ai=False)
         tax_result = compute_tax(classified, request.tax_regime, request.financial_year)
         pdf_bytes = generate_form26as_pdf(request.profile, tax_result.model_dump(), classified)
         now = datetime.utcnow()
@@ -373,3 +376,4 @@ def get_form26as_route(request: ITRFilingRequest):
     except Exception as e:
         logger.error(f"Failed to generate Form 26AS: {e}")
         raise HTTPException(status_code=500, detail=f"Form 26AS PDF generation failed: {e}")
+

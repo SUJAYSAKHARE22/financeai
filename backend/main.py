@@ -16,7 +16,7 @@ for env_path in [Path(".env"), Path("../.env"), Path(__file__).parent.parent / "
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger(__name__)
 
-from routers import transactions, budgets, ai_advisor, dashboard, goals, aica_router
+from routers import transactions, budgets, ai_advisor, dashboard, goals, aica_router, auth
 
 app = FastAPI(
     title="FinanceAI API",
@@ -47,6 +47,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled error on {request.method} {request.url}: {exc}", exc_info=True)
     return JSONResponse(status_code=500, content={"detail": "Internal server error", "error": str(exc)})
 
+app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(transactions.router, prefix="/api/transactions", tags=["Transactions"])
 app.include_router(budgets.router, prefix="/api/budgets", tags=["Budgets"])
 app.include_router(ai_advisor.router, prefix="/api/ai", tags=["AI Advisor"])

@@ -1,15 +1,16 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from services.database import db
+from services.auth import get_current_user_id
 
 router = APIRouter()
 
 
 @router.get("/summary")
-def get_dashboard_summary():
-    summary = db.get_financial_summary()
-    budgets = db.get_all_budgets()
-    goals = db.get_all_goals()
-    recent_transactions = db.get_all_transactions()[:5]
+def get_dashboard_summary(user_id: str = Depends(get_current_user_id)):
+    summary = db.get_financial_summary(user_id)
+    budgets = db.get_all_budgets(user_id)
+    goals = db.get_all_goals(user_id)
+    recent_transactions = db.get_all_transactions(user_id)[:5]
 
     budget_health = []
     for b in budgets:
